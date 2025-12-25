@@ -1,5 +1,7 @@
-from typing import Optional
+from typing import Optional, List
+from datetime import date
 from pydantic import BaseModel, EmailStr
+from app.schemas.certification import CertificationSimple
 
 
 class UserBase(BaseModel):
@@ -19,6 +21,11 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class UserAdminUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+
+
 class User(UserBase):
     id: int
     is_superuser: bool = False
@@ -29,6 +36,52 @@ class User(UserBase):
 
 class UserInDB(User):
     hashed_password: str
+
+
+# User Certification
+class UserCertificationBase(BaseModel):
+    acquired_date: Optional[date] = None
+    score: Optional[int] = None
+    certificate_number: Optional[str] = None
+
+
+class UserCertificationCreate(UserCertificationBase):
+    pass
+
+
+class UserCertification(UserCertificationBase):
+    id: int
+    user_id: int
+    certification_id: int
+    certification: Optional[CertificationSimple] = None
+
+    class Config:
+        from_attributes = True
+
+
+# User Goal
+class UserGoalBase(BaseModel):
+    target_date: Optional[date] = None
+    status: str = "pending"
+
+
+class UserGoalCreate(UserGoalBase):
+    pass
+
+
+class UserGoalUpdate(BaseModel):
+    target_date: Optional[date] = None
+    status: Optional[str] = None
+
+
+class UserGoal(UserGoalBase):
+    id: int
+    user_id: int
+    certification_id: int
+    certification: Optional[CertificationSimple] = None
+
+    class Config:
+        from_attributes = True
 
 
 # Auth
@@ -48,3 +101,9 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(UserCreate):
     pass
+
+
+# Paginated Response
+class UserList(BaseModel):
+    items: List[User]
+    total: int
