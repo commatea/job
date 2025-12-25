@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { certificationApi } from "@/lib/api";
-import { Certification } from "@/types";
+import { certificationApi, authApi, userApi } from "@/lib/api";
+import { Certification, User } from "@/types";
 import {
   Award,
   Building,
@@ -17,6 +17,9 @@ import {
   Bookmark,
   Share2,
   ExternalLink,
+  Target,
+  CheckCircle,
+  Plus,
 } from "lucide-react";
 
 // 데모 데이터
@@ -52,24 +55,61 @@ export default function CertificationDetailPage() {
   const [cert, setCert] = useState<Certification | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addType, setAddType] = useState<"goal" | "acquired">("goal");
 
   useEffect(() => {
-    const fetchCertification = async () => {
+    const fetchData = async () => {
       try {
-        const response = await certificationApi.get(Number(params.id));
-        setCert(response.data);
+        // 자격증 정보 가져오기
+        const certResponse = await certificationApi.get(Number(params.id));
+        setCert(certResponse.data);
       } catch (error) {
         console.error("자격증 정보를 가져오는데 실패했습니다.", error);
         setCert(DEMO_CERT);
       } finally {
         setLoading(false);
       }
+
+      // 로그인 상태 확인
+      try {
+        const token = localStorage.getItem("access_token");
+        if (token) {
+          const userResponse = await authApi.me();
+          setUser(userResponse.data);
+        }
+      } catch {
+        // 로그인 안됨
+      }
     };
 
     if (params.id) {
-      fetchCertification();
+      fetchData();
     }
   }, [params.id]);
+
+  const handleAddToGoals = async () => {
+    if (!user || !cert) return;
+    try {
+      // API 호출 (실제로는 userApi.addGoal 같은 것 필요)
+      alert(`"${cert.name}"이(가) 목표에 추가되었습니다.`);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("목표 추가에 실패했습니다.", error);
+    }
+  };
+
+  const handleAddToAcquired = async () => {
+    if (!user || !cert) return;
+    try {
+      await userApi.addCertification(cert.id, {});
+      alert(`"${cert.name}" 취득이 기록되었습니다.`);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("취득 기록에 실패했습니다.", error);
+    }
+  };
 
   const parseSubjects = (subjects: string | undefined): string[] => {
     if (!subjects) return [];
@@ -150,19 +190,44 @@ export default function CertificationDetailPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsBookmarked(!isBookmarked)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                  isBookmarked
-                    ? "bg-blue-50 border-blue-300 text-blue-600"
-                    : "bg-white hover:bg-gray-50"
-                }`}
-              >
-                <Bookmark
-                  className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`}
-                />
-                북마크
-              </button>
+              {user ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setAddType("goal");
+                      setShowAddModal(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-purple-50 border-purple-300 text-purple-600 hover:bg-purple-100 transition-colors"
+                  >
+                    <Target className="w-5 h-5" />
+                    목표 추가
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAddType("acquired");
+                      setShowAddModal(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-green-50 border-green-300 text-green-600 hover:bg-green-100 transition-colors"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    취득 완료
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsBookmarked(!isBookmarked)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                    isBookmarked
+                      ? "bg-blue-50 border-blue-300 text-blue-600"
+                      : "bg-white hover:bg-gray-50"
+                  }`}
+                >
+                  <Bookmark
+                    className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`}
+                  />
+                  북마크
+                </button>
+              )}
               <button className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-white hover:bg-gray-50">
                 <Share2 className="w-5 h-5" />
                 공유
@@ -362,21 +427,132 @@ export default function CertificationDetailPage() {
             </div>
 
             {/* CTA */}
-            <div className="bg-gradient-to-r from-blue-600 to-teal-500 rounded-xl p-6 text-white">
-              <h3 className="font-semibold mb-2">이 자격증에 관심이 있으신가요?</h3>
-              <p className="text-sm text-blue-100 mb-4">
-                로그인하고 나만의 자격증 로드맵을 만들어보세요.
-              </p>
-              <Link
-                href="/register"
-                className="block w-full py-2 bg-white text-blue-600 font-medium rounded-lg text-center hover:bg-blue-50 transition-colors"
-              >
-                무료로 시작하기
-              </Link>
-            </div>
+            {!user && (
+              <div className="bg-gradient-to-r from-blue-600 to-teal-500 rounded-xl p-6 text-white">
+                <h3 className="font-semibold mb-2">이 자격증에 관심이 있으신가요?</h3>
+                <p className="text-sm text-blue-100 mb-4">
+                  로그인하고 나만의 자격증 로드맵을 만들어보세요.
+                </p>
+                <Link
+                  href="/register"
+                  className="block w-full py-2 bg-white text-blue-600 font-medium rounded-lg text-center hover:bg-blue-50 transition-colors"
+                >
+                  무료로 시작하기
+                </Link>
+              </div>
+            )}
+
+            {user && (
+              <div className="bg-white rounded-xl border p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  나의 자격증 관리
+                </h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setAddType("goal");
+                      setShowAddModal(true);
+                    }}
+                    className="w-full flex items-center justify-between p-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Target className="w-5 h-5" />
+                      목표로 설정
+                    </span>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAddType("acquired");
+                      setShowAddModal(true);
+                    }}
+                    className="w-full flex items-center justify-between p-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      취득 완료 기록
+                    </span>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* 추가 모달 */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full m-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              {addType === "goal" ? "목표 자격증 추가" : "취득 자격증 기록"}
+            </h3>
+
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                <span className="font-medium text-gray-800">{cert?.name}</span>을(를)
+                {addType === "goal" ? " 목표로 설정하시겠습니까?" : " 취득 완료로 기록하시겠습니까?"}
+              </p>
+
+              {addType === "goal" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    목표 취득일 (선택)
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              )}
+
+              {addType === "acquired" && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      취득일
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      점수 (선택)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="예: 85"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={addType === "goal" ? handleAddToGoals : handleAddToAcquired}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  addType === "goal"
+                    ? "bg-purple-600 hover:bg-purple-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                {addType === "goal" ? "목표 추가" : "기록하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

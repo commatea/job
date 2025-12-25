@@ -74,6 +74,7 @@ export interface Requirement {
   certification_id?: number;
   description?: string;
   certification_name?: string;
+  is_mandatory?: boolean;
 }
 
 export interface Career extends CareerSimple {
