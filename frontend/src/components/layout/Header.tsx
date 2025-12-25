@@ -1,13 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, Award, Briefcase, Rocket, User, LogIn } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Menu, X, Award, Briefcase, Rocket, User, LogIn, LogOut, Search, Shield } from "lucide-react";
+import { authApi } from "@/lib/api";
+import { User as UserType } from "@/types";
 
 export default function Header() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        if (token) {
+          const response = await authApi.me();
+          setUser(response.data);
+        }
+      } catch {
+        localStorage.removeItem("access_token");
+        setUser(null);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setUser(null);
+    setIsUserMenuOpen(false);
+    router.push("/");
+  };
 
   const navItems = [
+    { href: "/certifications", label: "자격증", icon: Search },
     { href: "/tech-tree", label: "테크트리", icon: Award },
     { href: "/careers", label: "직업", icon: Briefcase },
     { href: "/startups", label: "창업", icon: Rocket },
@@ -43,19 +73,65 @@ export default function Header() {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link
-              href="/login"
-              className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>로그인</span>
-            </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              회원가입
-            </Link>
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors"
+                >
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm">{user.full_name || user.email.split("@")[0]}</span>
+                </button>
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    <Link
+                      href="/mypage"
+                      className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <User className="w-4 h-4" />
+                      <span>마이페이지</span>
+                    </Link>
+                    {user.is_superuser && (
+                      <Link
+                        href="/admin"
+                        className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Shield className="w-4 h-4" />
+                        <span>관리자</span>
+                      </Link>
+                    )}
+                    <hr className="my-1" />
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-gray-100 w-full"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>로그아웃</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>로그인</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  회원가입
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -83,21 +159,56 @@ export default function Header() {
                 </Link>
               ))}
               <hr />
-              <Link
-                href="/login"
-                className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors px-2 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인</span>
-              </Link>
-              <Link
-                href="/register"
-                className="mx-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                회원가입
-              </Link>
+              {user ? (
+                <>
+                  <Link
+                    href="/mypage"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors px-2 py-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <User className="w-5 h-5" />
+                    <span>마이페이지</span>
+                  </Link>
+                  {user.is_superuser && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors px-2 py-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Shield className="w-5 h-5" />
+                      <span>관리자</span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors px-2 py-2"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>로그아웃</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors px-2 py-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <LogIn className="w-5 h-5" />
+                    <span>로그인</span>
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="mx-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    회원가입
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
         )}
