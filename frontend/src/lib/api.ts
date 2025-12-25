@@ -66,3 +66,74 @@ export const authApi = {
 
   me: () => api.get('/auth/me'),
 };
+
+// 관리자 API
+export const adminApi = {
+  // 자격증 관리
+  certifications: {
+    list: (params?: { page?: number; limit?: number; search?: string }) =>
+      api.get('/admin/certifications/', { params }),
+    get: (id: number) => api.get(`/admin/certifications/${id}`),
+    create: (data: CertificationFormData) => api.post('/admin/certifications/', data),
+    update: (id: number, data: CertificationFormData) =>
+      api.put(`/admin/certifications/${id}`, data),
+    delete: (id: number) => api.delete(`/admin/certifications/${id}`),
+  },
+  // 직업 관리
+  careers: {
+    list: (params?: { page?: number; limit?: number; search?: string }) =>
+      api.get('/admin/careers/', { params }),
+    get: (id: number) => api.get(`/admin/careers/${id}`),
+    create: (data: CareerFormData) => api.post('/admin/careers/', data),
+    update: (id: number, data: CareerFormData) =>
+      api.put(`/admin/careers/${id}`, data),
+    delete: (id: number) => api.delete(`/admin/careers/${id}`),
+  },
+  // 사용자 관리
+  users: {
+    list: (params?: { page?: number; limit?: number }) =>
+      api.get('/admin/users/', { params }),
+    get: (id: number) => api.get(`/admin/users/${id}`),
+    update: (id: number, data: { is_active?: boolean; is_superuser?: boolean }) =>
+      api.put(`/admin/users/${id}`, data),
+  },
+};
+
+// 마이페이지 API
+export const userApi = {
+  getProfile: () => api.get('/users/me'),
+  updateProfile: (data: { full_name?: string }) => api.put('/users/me', data),
+  getMyCertifications: () => api.get('/users/me/certifications'),
+  addCertification: (certificationId: number, data: { acquired_date?: string; score?: number }) =>
+    api.post(`/users/me/certifications/${certificationId}`, data),
+  removeCertification: (certificationId: number) =>
+    api.delete(`/users/me/certifications/${certificationId}`),
+  getMyGoals: () => api.get('/users/me/goals'),
+};
+
+// Form 타입
+export interface CertificationFormData {
+  name: string;
+  code?: string;
+  category_main?: string;
+  category_sub?: string;
+  level?: string;
+  level_order?: number;
+  issuer?: string;
+  fee_written?: number;
+  fee_practical?: number;
+  pass_rate?: string;
+  description?: string;
+  eligibility?: string;
+  subjects?: string;
+  is_active?: boolean;
+}
+
+export interface CareerFormData {
+  name: string;
+  type: 'job' | 'startup';
+  category?: string;
+  description?: string;
+  salary_range?: string;
+  growth_potential?: string;
+}
